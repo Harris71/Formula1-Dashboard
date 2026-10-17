@@ -8,10 +8,11 @@
 ![FastF1](https://img.shields.io/badge/Telemetry-FastF1-E10600)
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/9ad83e4d-fd66-439b-bdd5-776ad8ed3f5f" width="49%" alt="Race Control" />
-  <img src="https://github.com/user-attachments/assets/a83389ad-1dc4-41b8-bf66-aecd701dfb96" width="49%" alt="Race Sessions" />
+  <img src="https://github.com/user-attachments/assets/9ad83e4d-fd66-439b-bdd5-776ad8ed3f5f" width="48%" alt="Race Control" />
+  <img src="https://github.com/user-attachments/assets/a83389ad-1dc4-41b8-bf66-aecd701dfb96" width="48%" alt="Race Sessions" />
 </p>
----
+
+https://github.com/user-attachments/assets/8da998b5-306d-4c64-a407-483988694275
 
 ## Contents
 
