@@ -1,62 +1,136 @@
-# F1 Tracker
+# 🏎️ F1 Tracker
 
-A desktop Formula 1 companion built with PyQt6: live countdown to the next
-race, championship standings for every season since 1950, race results with
-telemetry analysis, a lap-by-lap race replay and the full season calendar in
-your own time zone.
+**A desktop Formula 1 companion: race countdown, championship standings back to 1950, telemetry-driven race analysis, and a lap-by-lap race replay.**
+
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![PyQt6](https://img.shields.io/badge/GUI-PyQt6-41CD52?logo=qt&logoColor=white)
+![Matplotlib](https://img.shields.io/badge/Plots-Matplotlib-11557c)
+![FastF1](https://img.shields.io/badge/Telemetry-FastF1-E10600)
+
+<!-- Add screenshots here, e.g. ![Race Control](docs/home.png) -->
+
+---
+
+## Contents
+
+- [Features](#features)
+- [Getting started](#getting-started)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [How it works](#how-it-works)
+- [Project structure](#project-structure)
+- [Data sources](#data-sources)
+- [Troubleshooting](#troubleshooting)
+- [Credits](#credits)
 
 ## Features
 
-- **Race Control (Home)**: a live countdown to lights out, the weekend
-  timetable in your local time, the championship leaders, season progress,
-  the top-five drivers and constructors, and the podium from the last race.
-- **Race Sessions**: **Load Session** shows race and qualifying
-  classification instantly from Jolpica, with team colours, podium badges,
-  positions gained or lost, and status pills. **Load Telemetry** (2018 onwards)
-  then fetches FastF1 data for the analysis charts (positions, tyre strategy,
-  team pace, lap-time distributions, circuit map) and the **Lap Progression**
-  tab, which replays the race on the circuit map with a running leaderboard,
-  adjustable speed and a scrubber.
-- **Standings**: Drivers' and Constructors' tables for any season, with the
-  gap to the leader, a race-by-race progression table and a cumulative
-  points chart.
-- **Season Calendar**: every round with its status, weekend session times in
-  local time, one-click access to a past race's results, and **export to
-  `.ics`** for Google Calendar, Outlook and Apple Calendar.
-- **Works offline**: Jolpica responses are cached on disk. Finished seasons
-  are kept for good. Data for the season in progress refreshes every 30
-  minutes, and the last copy is used when the network is unavailable.
+### 🏁 Race Control (Home)
+- Live countdown to lights out for the next race
+- Weekend timetable shown in **your local time zone**
+- Championship leaders, season progress, top-five drivers and constructors
+- Podium from the most recent race
 
-## Keyboard shortcuts
+### 📊 Race Sessions
+- **Load Session**: race and qualifying classification, instantly, with team colours, podium badges, positions gained or lost, and status pills
+- **Load Telemetry** (2018 onwards): analysis charts powered by FastF1
+  - Position changes
+  - Tyre strategies
+  - Team pace comparison
+  - Lap-time distributions
+  - Circuit map
+- **Lap Progression**: replays the race on the circuit map with a running leaderboard, adjustable speed and a scrubber
 
-| Shortcut       | Action                 |
-| -------------- | ---------------------- |
-| `Ctrl+1`–`4`   | Switch page            |
-| `F5`           | Refresh current page   |
-| `Alt+Left`     | Back to the previous page or tab (also the mouse's back button) |
+### 🏆 Standings
+- Drivers' and Constructors' tables for **any season since 1950**
+- Gap to the leader and a race-by-race progression table
+- Cumulative points chart across the season
 
-## Running
+### 📅 Season Calendar
+- Every round with its status and session times in local time
+- One-click jump to a past race's results
+- **Export to `.ics`** for Google Calendar, Outlook and Apple Calendar
+
+### 📴 Works offline
+Jolpica responses are cached on disk. Finished seasons are kept permanently, the season in progress refreshes every 30 minutes, and the last cached copy is used whenever the network is unavailable.
+
+## Getting started
+
+**Requirements:** Python 3.11 or newer.
 
 ```bash
+git clone https://github.com/Harris71/Formula-Tracker-F1-Race-Data-and-Championship-Visualizer.git
+cd Formula-Tracker-F1-Race-Data-and-Championship-Visualizer
+
 python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
 python main.py
 ```
 
-Python 3.11+ is recommended.
+The first time you load a telemetry session, FastF1 downloads its data into a local `cache/` folder, so that load is slower than later ones.
+
+## Keyboard shortcuts
+
+| Shortcut     | Action                                                             |
+| ------------ | ------------------------------------------------------------------ |
+| `Ctrl+1`–`4` | Switch page                                                        |
+| `F5`         | Refresh current page                                               |
+| `Alt+Left`   | Back to the previous page or tab (also the mouse's back button)    |
+
+## How it works
+
+- **Two data layers.** Jolpica supplies lightweight data (calendar, standings, results) so pages open fast. FastF1 supplies heavy session telemetry, which only loads when you press **Load Telemetry**.
+- **Never blocks the UI.** All network and parsing work runs on background workers (`QThreadPool`), and results are delivered back on the GUI thread.
+- **Thread-safe plotting.** Charts use Matplotlib's `Figure` API directly rather than `pyplot`, with the Agg backend, so they can be built off the main thread.
+- **Clean shutdown.** On exit the app drains the thread pool and pending callbacks before closing, which avoids Qt aborts from half-finished workers.
+
+## Project structure
+
+```
+.
+├── main.py                  # Entry point
+├── requirements.txt
+├── assets/
+│   ├── fonts/               # Titillium Web (SIL OFL)
+│   └── icons/
+└── f1_tracker/
+    ├── app.py               # Main window, sidebar navigation, shared data helpers
+    ├── config.py            # Theme colours, API URLs, cache location
+    ├── teams.py             # Team colours and naming
+    ├── services/            # Data access
+    │   ├── http.py          #   HTTP client with caching
+    │   ├── schedule.py      #   Calendar
+    │   ├── standings.py     #   Championship standings
+    │   ├── results.py       #   Race and qualifying results
+    │   └── sessions.py      #   FastF1 session loading
+    ├── ui/
+    │   ├── pages/           # Home, Race Sessions, Standings, Calendar
+    │   ├── replay.py        # Lap progression panel
+    │   ├── widgets.py       # Tables, cards, chips
+    │   ├── workers.py       # Background worker helper
+    │   ├── plot_viewer.py   # Chart window
+    │   └── theme.py         # Application styling
+    └── visualizations/
+        ├── plots.py         # Analysis charts
+        └── progress_map.py  # Circuit map animation
+```
 
 ## Data sources
 
-- [Jolpica-F1](https://github.com/jolpica/jolpica-f1) (Ergast-compatible API)
-  for calendars, standings and results.
-- [FastF1](https://github.com/theOehrly/Fast-F1) for session timing and
-  telemetry. The first time a session loads, its data is downloaded to
-  `cache/`.
+- [**Jolpica-F1**](https://github.com/jolpica/jolpica-f1): Ergast-compatible API for calendars, standings and results.
+- [**FastF1**](https://github.com/theOehrly/Fast-F1): session timing and telemetry.
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| Telemetry won't load | Telemetry is available from 2018 onwards, and FastF1 needs network access the first time a session loads. |
+| Data looks stale | Press `F5` to refresh. The current season is cached for 30 minutes. |
+| Qt platform plugin error on Linux | Install your distro's Qt/XCB libraries (for example `libxcb-cursor0` on Debian/Ubuntu). |
 
 ## Credits
 
-The UI font is [Titillium Web](https://fonts.google.com/specimen/Titillium+Web),
-licensed under the SIL Open Font License (`assets/fonts/OFL.txt`). F1 Tracker
-is an unofficial fan project and is not associated with Formula 1 companies.
-F1, FORMULA ONE and related marks are trademarks of Formula One Licensing B.V.
+The UI font is [Titillium Web](https://fonts.google.com/specimen/Titillium+Web), licensed under the SIL Open Font License (`assets/fonts/OFL.txt`).
+
+F1 Tracker is an unofficial fan project and is not associated with any Formula 1 companies. F1, FORMULA ONE and related marks are trademarks of Formula One Licensing B.V.
