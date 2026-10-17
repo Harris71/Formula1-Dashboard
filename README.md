@@ -7,7 +7,7 @@
 ![Matplotlib](https://img.shields.io/badge/Plots-Matplotlib-11557c)
 ![FastF1](https://img.shields.io/badge/Telemetry-FastF1-E10600)
 
-<!-- Add screenshots here, e.g. ![Race Control](docs/home.png) -->
+<img width="1366" height="736" alt="Screenshot From 2026-10-17 21-20-22" src="https://github.com/user-attachments/assets/9ad83e4d-fd66-439b-bdd5-776ad8ed3f5f" />
 
 ---
 
