@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import requests
+
 from f1_tracker.config import JOLPICA_BASE_URL
 from f1_tracker.services.http import cached_json
 from f1_tracker.services.schedule import Race, fetch_schedule
@@ -36,6 +38,7 @@ class RaceWeekend:
     race: Race
     results: tuple[RaceRow, ...]
     qualifying: tuple[QualiRow, ...]
+    sprint: tuple[RaceRow, ...] = ()  # only sprint weekends, once the sprint has been run
 
 
 def _has_races(data: dict[str, Any]) -> bool:
@@ -59,6 +62,31 @@ def _int(value, default: int = 0) -> int:
         return default
 
 
+def _race_rows(year: int, round_number: int, endpoint: str, field: str) -> list[RaceRow]:
+    """Classification rows of a Grand Prix ("results") or its sprint ("sprint")."""
+    rows: list[RaceRow] = []
+    for race_data in _races(year, round_number, endpoint)[:1]:
+        for index, res in enumerate(race_data.get(field, []), start=1):
+            driver = res.get("Driver", {})
+            status = res.get("status", "")
+            timing = (res.get("Time") or {}).get("time", "")
+            if not timing and status.startswith("+"):
+                timing = status  # e.g. "+1 Lap"
+            rows.append(
+                RaceRow(
+                    position=_int(res.get("position"), index),
+                    driver=_name(driver),
+                    family_name=driver.get("familyName", "") or _name(driver),
+                    team=(res.get("Constructor") or {}).get("name", "-"),
+                    grid=_int(res.get("grid")),
+                    time=timing,
+                    status=status,
+                    points=float(res.get("points", 0) or 0),
+                )
+            )
+    return rows
+
+
 def find_race(year: int, grand_prix: str) -> Race:
     """Resolve a Grand Prix name (exact, then partial match) to its calendar entry."""
     schedule = fetch_schedule(year)
@@ -74,29 +102,16 @@ def find_race(year: int, grand_prix: str) -> Race:
 
 
 def fetch_race_weekend(year: int, grand_prix: str) -> RaceWeekend:
-    """Race and qualifying classification for one round (Jolpica / Ergast)."""
+    """Race, qualifying and (on sprint weekends) sprint classification for one round (Jolpica / Ergast)."""
     race = find_race(year, grand_prix)
 
-    results: list[RaceRow] = []
-    for race_data in _races(year, race.round, "results")[:1]:
-        for index, res in enumerate(race_data.get("Results", []), start=1):
-            driver = res.get("Driver", {})
-            status = res.get("status", "")
-            timing = (res.get("Time") or {}).get("time", "")
-            if not timing and status.startswith("+"):
-                timing = status  # e.g. "+1 Lap"
-            results.append(
-                RaceRow(
-                    position=_int(res.get("position"), index),
-                    driver=_name(driver),
-                    family_name=driver.get("familyName", "") or _name(driver),
-                    team=(res.get("Constructor") or {}).get("name", "-"),
-                    grid=_int(res.get("grid")),
-                    time=timing,
-                    status=status,
-                    points=float(res.get("points", 0) or 0),
-                )
-            )
+    results = _race_rows(year, race.round, "results", "Results")
+    sprint: list[RaceRow] = []
+    if race.is_sprint:
+        try:
+            sprint = _race_rows(year, race.round, "sprint", "SprintResults")
+        except requests.RequestException:
+            pass  # the sprint is optional: its failure must not blank the Grand Prix results
 
     qualifying: list[QualiRow] = []
     for race_data in _races(year, race.round, "qualifying")[:1]:
@@ -112,7 +127,9 @@ def fetch_race_weekend(year: int, grand_prix: str) -> RaceWeekend:
                 )
             )
 
-    return RaceWeekend(year=year, race=race, results=tuple(results), qualifying=tuple(qualifying))
+    return RaceWeekend(
+        year=year, race=race, results=tuple(results), qualifying=tuple(qualifying), sprint=tuple(sprint)
+    )
 
 
 def weekend_span(race: Race) -> str:

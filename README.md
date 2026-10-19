@@ -39,6 +39,7 @@ https://github.com/user-attachments/assets/eafb7523-9ccb-4095-a16d-0a96a8490844
 
 ### 📊 Race Sessions
 - **Load Session**: race and qualifying classification, instantly, with team colours, podium badges, positions gained or lost, and status pills
+- **Sprint Results** tab on sprint weekends, in the same format as the race classification
 - **Load Telemetry** (2018 onwards): analysis charts powered by FastF1
   - Position changes
   - Tyre strategies

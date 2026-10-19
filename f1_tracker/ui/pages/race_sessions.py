@@ -62,6 +62,26 @@ class _FlatTable(F1Table):
         QApplication.sendEvent(parent.viewport(), event)
 
 
+def _results_table() -> _FlatTable:
+    """A race-style classification table (used for the Grand Prix and the sprint)."""
+    center = Qt.AlignmentFlag.AlignCenter
+    return _FlatTable(
+        [
+            ("Pos", 60, center),
+            ("Driver", 210, None),
+            ("Team", 190, None),
+            ("Grid", 60, center),
+            ("+/-", 60, center),
+            ("Time / Gap", 130, center),
+            ("Status", 110, center),
+            ("Points", 70, center),
+        ],
+        team_columns={1: 2, 2: None},
+        pill_columns=(6,),
+        bold_columns=(1, 7),
+    )
+
+
 def _status_text(status) -> str:
     """Collapse Ergast/FastF1 result statuses into a pill label."""
     lowered = str(status or "").strip().lower()
@@ -80,6 +100,7 @@ def _status_text(status) -> str:
 
 class RaceSessionsPage(BasePage):
     _TABS_MIN_HEIGHT = 470
+    _SPRINT_TAB = 1
 
     def __init__(self, controller) -> None:
         super().__init__(controller)
@@ -152,21 +173,8 @@ class RaceSessionsPage(BasePage):
         tabs = QTabWidget()
         self.tabs = tabs
         center = Qt.AlignmentFlag.AlignCenter
-        self.race_table = _FlatTable(
-            [
-                ("Pos", 60, center),
-                ("Driver", 210, None),
-                ("Team", 190, None),
-                ("Grid", 60, center),
-                ("+/-", 60, center),
-                ("Time / Gap", 130, center),
-                ("Status", 110, center),
-                ("Points", 70, center),
-            ],
-            team_columns={1: 2, 2: None},
-            pill_columns=(6,),
-            bold_columns=(1, 7),
-        )
+        self.race_table = _results_table()
+        self.sprint_table = _results_table()
         self.quali_table = _FlatTable(
             [
                 ("Pos", 60, center),
@@ -180,6 +188,8 @@ class RaceSessionsPage(BasePage):
             bold_columns=(1, 5),
         )
         tabs.addTab(self._tab_page(self.race_table), "Race Results")
+        tabs.addTab(self._tab_page(self.sprint_table), "Sprint Results")
+        tabs.setTabVisible(self._SPRINT_TAB, False)  # only sprint weekends have one
         tabs.addTab(self._tab_page(self.quali_table), "Qualifying")
         self.replay = LapProgressionPanel()
         tabs.addTab(self.replay, "Lap Progression")
@@ -275,7 +285,7 @@ class RaceSessionsPage(BasePage):
                 QTimer.singleShot(0, self._scroll_to_tabs)
 
     def _fit_tables(self) -> None:
-        for table in (self.race_table, self.quali_table):
+        for table in (self.race_table, self.sprint_table, self.quali_table):
             table.fit_height()
         self._sync_tab_height()
 
@@ -377,7 +387,9 @@ class RaceSessionsPage(BasePage):
         self.weekend = weekend
         race = weekend.race
 
-        self._fill_race_table(weekend)
+        self._fill_results(self.race_table, weekend.results)
+        self._fill_results(self.sprint_table, weekend.sprint)
+        self._show_sprint_tab(bool(weekend.sprint))
         self._fill_quali_table(weekend)
         self._fit_tables()
         self._update_event_card()
@@ -387,7 +399,12 @@ class RaceSessionsPage(BasePage):
         self.telemetry_button.setEnabled(supported and has_results)
         if not has_results:
             self.telemetry_button.setToolTip("Telemetry is available once the race has been run")
-            self.status_label.setText(f"No results yet for the {weekend.year} {race.name}.")
+            if weekend.sprint:
+                self.status_label.setText(
+                    f"The {weekend.year} {race.name} race hasn't been run yet. The sprint is in the Sprint Results tab."
+                )
+            else:
+                self.status_label.setText(f"No results yet for the {weekend.year} {race.name}.")
             self._reset_telemetry("This race hasn't been run yet.")
         elif not supported:
             self.telemetry_button.setToolTip("Telemetry exists from 2018 onwards")
@@ -407,6 +424,8 @@ class RaceSessionsPage(BasePage):
         # Don't leave the previous round on screen under a failed selection.
         self.weekend = None
         self.race_table.fill([])
+        self.sprint_table.fill([])
+        self._show_sprint_tab(False)
         self.quali_table.fill([])
         self._fit_tables()
         self.event_card.setVisible(False)
@@ -482,9 +501,15 @@ class RaceSessionsPage(BasePage):
         self.worker.run(work, on_done=done, on_error=failed)
 
     # ----------------------------------------------------------- tables
-    def _fill_race_table(self, weekend: RaceWeekend) -> None:
+    def _show_sprint_tab(self, visible: bool) -> None:
+        if not visible and self.tabs.currentIndex() == self._SPRINT_TAB:
+            self.tabs.setCurrentIndex(0)  # Race Results; hiding the tab first would jump to Qualifying
+        self.tabs.setTabVisible(self._SPRINT_TAB, visible)
+
+    @staticmethod
+    def _fill_results(table: _FlatTable, results) -> None:
         rows = []
-        for res in weekend.results:
+        for res in results:
             gained = ""
             if res.grid:
                 delta = res.grid - res.position
@@ -500,7 +525,7 @@ class RaceSessionsPage(BasePage):
                 status,
                 int(res.points) if res.points.is_integer() else res.points,
             ))
-        self.race_table.fill(rows)
+        table.fill(rows)
 
     def _fill_quali_table(self, weekend: RaceWeekend) -> None:
         self.quali_table.fill([

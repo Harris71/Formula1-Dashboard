@@ -4,7 +4,7 @@ import time
 
 from datetime import date, datetime, timezone
 
-from PyQt6.QtCore import QSize, Qt, QThreadPool, QTimer
+from PyQt6.QtCore import QEvent, QSize, Qt, QThreadPool, QTimer
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QStackedWidget,
+    QTabBar,
     QVBoxLayout,
     QWidget,
 )
@@ -263,6 +264,9 @@ class F1App(QMainWindow):
         tabs = getattr(page, "tabs", None)
         if tabs is not None:
             tabs.currentChanged.connect(lambda index, k=key: self._on_tab_changed(k, index))
+            # A tab bar switches tabs on the mouse wheel, so scrolling a long page
+            # past it flipped tabs; pass the wheel on to the page instead.
+            tabs.tabBar().installEventFilter(self)
 
     # ------------------------------------------------------------------ nav
     def navigate(self, key: str) -> None:
@@ -294,19 +298,35 @@ class F1App(QMainWindow):
 
     def go_back(self) -> None:
         """Return to the previous page, and the tab it was on."""
-        if not self._history:
-            return
-        key, tab = self._history.pop()
-        self._current = (key, tab)
-        self._restoring = True
-        try:
-            self._show(key)
+        while self._history:
+            key, tab = self._history.pop()
             tabs = getattr(self._pages[key], "tabs", None)
-            if tabs is not None and tab is not None:
-                tabs.setCurrentIndex(tab)
-        finally:
-            self._restoring = False
+            if tabs is not None and tab is not None and not tabs.isTabVisible(tab):
+                continue  # a tab that no longer applies (e.g. Sprint Results on a normal weekend)
+            if (key, tab) == self._current:
+                continue  # already here; a Back press must visibly go somewhere
+            self._current = (key, tab)
+            self._restoring = True
+            try:
+                self._show(key)
+                if tabs is not None and tab is not None:
+                    tabs.setCurrentIndex(tab)
+            finally:
+                self._restoring = False
+            break
         self.back_button.setEnabled(bool(self._history))
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802
+        if event.type() == QEvent.Type.Wheel and isinstance(obj, QTabBar):
+            area = obj.parentWidget()
+            while area is not None and not isinstance(area, QScrollArea):
+                area = area.parentWidget()
+            if area is not None:
+                QApplication.sendEvent(area.viewport(), event)
+            else:
+                event.ignore()  # nothing to scroll here: let a parent have it, never switch tabs
+            return True  # sideways wheel too: a tab bar has nothing to scroll sideways
+        return super().eventFilter(obj, event)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         if event.button() == Qt.MouseButton.BackButton:  # the mouse's back thumb button
