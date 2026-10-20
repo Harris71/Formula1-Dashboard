@@ -66,8 +66,8 @@ Jolpica responses are cached on disk. Finished seasons are kept permanently, the
 **Requirements:** Python 3.11 or newer.
 
 ```bash
-git clone https://github.com/Harris71/Formula-Tracker-F1-Race-Data-and-Championship-Visualizer.git
-cd Formula-Tracker-F1-Race-Data-and-Championship-Visualizer
+git clone https://github.com/Harris71/Formula1-Dashboard
+cd Formula1-Dashboard
 
 python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
